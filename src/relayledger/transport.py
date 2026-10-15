@@ -65,6 +65,8 @@ def send(work, route, *, now_ms):
             'X-RelayLedger-Attempt':str(work.total_attempt),'User-Agent':'RelayLedger/0.1.0'})
         response = connection.getresponse()
         status = response.status
+        if not 100 <= status <= 599:
+            return Delivery(False,True,'protocol_error')
         if 200 <= status < 300: return Delivery(True,False,f'http_{status}',status)
         retryable = status in (408,425,429) or 500 <= status < 600
         delay = None

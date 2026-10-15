@@ -54,12 +54,19 @@ def _expire(database, now):
             (state,now,now,row['id']))
 
 
-def claim(database, *, lease_ms=30_000, now_ms=None):
+def claim(database, *, lease_ms=30_000, now_ms=None, topics=None):
+    if topics is not None:
+        topics = set(topics)
+        for topic in topics: label(topic)
     integer(lease_ms,1,3_600_000)
     now = instant(now_ms)
     deadline = instant(now+lease_ms)
     check_schema(database)
     with transaction(database):
+        if topics is not None:
+            active = {row[0] for row in database.execute("SELECT DISTINCT topic FROM relayledger_events WHERE state IN ('pending','inflight','dead')")}
+            if active - topics:
+                raise RelayError("Configure routes for every unresolved event topic before running")
         _expire(database,now)
         row = database.execute('''SELECT e.* FROM relayledger_events e
             WHERE e.state='pending' AND e.available_at_ms<=?

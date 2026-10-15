@@ -29,10 +29,7 @@ class Worker:
         self.retry,self.clock,self.transport = retry or RetryPolicy(),clock,transport
 
     def run_once(self):
-        active = {row[0] for row in self.database.execute("SELECT DISTINCT topic FROM relayledger_events WHERE state IN ('pending','inflight','dead')")}
-        if active - self.routes.keys():
-            raise RelayError("Configure routes for every unresolved event topic before running")
-        work = claim(self.database,lease_ms=self.lease_ms,now_ms=self.clock())
+        work = claim(self.database,lease_ms=self.lease_ms,now_ms=self.clock(),topics=self.routes)
         if work is None: return WorkResult('idle')
         delivery = self.transport(work,self.routes[work.topic],now_ms=self.clock())
         now = self.clock()

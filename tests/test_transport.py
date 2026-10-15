@@ -77,3 +77,10 @@ class TransportTests(DatabaseTest):
                     'https://example.com/#fragment','https://example.com/\r\nInjected','https://example.com:0'):
             with self.assertRaises(RelayError): Route(url,SECRET,allow_http_loopback=True)
         self.assertNotIn('example.com',repr(Route('https://example.com',SECRET)))
+
+    def test_invalid_http_status_becomes_retryable_protocol_error(self):
+        with receiver(999) as (url,_):
+            result = send(self.work(),Route(url,SECRET,allow_http_loopback=True),now_ms=NOW)
+        self.assertTrue(result.retryable)
+        self.assertIsNone(result.http_status)
+        self.assertEqual(result.code,'protocol_error')
