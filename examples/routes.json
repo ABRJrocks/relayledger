@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "routes": {
+    "order.confirmed": {
+      "url_env": "ORDERS_WEBHOOK_URL",
+      "secret_env": "ORDERS_SIGNING_SECRET",
+      "timeout_seconds": 5
+    }
+  }
+}

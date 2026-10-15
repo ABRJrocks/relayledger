@@ -20,4 +20,4 @@ Leases fence stale workers from updating local delivery state, but cannot cancel
 
 Ordering applies within an explicitly named stream. A pending, leased or dead head blocks later events in that stream; unrelated streams can progress. Operators may retry a dead event or deliberately discard it with an audit reason. There is no global delivery ordering across streams and no promise of exactly-once effects in external systems.
 
-The release will verify local transactions, separate-process concurrency, lease expiration, crash recovery, duplicate receiver delivery and actual loopback HTTP behavior. It does not claim PostgreSQL compatibility, distributed SQLite operation, production throughput certification or a formal security audit.
+The automated suite verifies local transactions, separate-process concurrency, lease expiration, crash recovery, duplicate receiver delivery and actual loopback HTTP behavior. A separate integration test exercises certificate rejection and trusted TLS delivery. It does not claim PostgreSQL compatibility, distributed SQLite operation, production throughput certification or a formal security audit.

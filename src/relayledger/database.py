@@ -1,9 +1,9 @@
 """Caller-owned transactions and isolated application-table namespaces."""
 
-from contextlib import contextmanager
 import os
-from pathlib import Path
 import sqlite3
+from contextlib import contextmanager
+from pathlib import Path
 
 from .validation import RelayError
 
@@ -35,62 +35,86 @@ SCHEMA = (
 
 
 def wal_fixed(version):
-    return (version >= (3,51,3) or (3,50,7) <= version < (3,51,0)
-            or (3,44,6) <= version < (3,45,0))
+    return (
+        version >= (3, 51, 3)
+        or (3, 50, 7) <= version < (3, 51, 0)
+        or (3, 44, 6) <= version < (3, 45, 0)
+    )
 
 
 def connect(path, *, create=False):
-    if sqlite3.sqlite_version_info < (3,24,0):
+    if sqlite3.sqlite_version_info < (3, 24, 0):
         raise RelayError("SQLite 3.24+ is required")
-    if str(path) == ':memory:':
-        database = sqlite3.connect(':memory:',isolation_level=None,timeout=5)
+    if str(path) == ":memory:":
+        database = sqlite3.connect(":memory:", isolation_level=None, timeout=5)
     else:
         path = Path(path).resolve()
         if create:
             try:
-                descriptor = os.open(path,os.O_CREAT|os.O_EXCL|os.O_RDWR,0o600)
+                descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
                 os.close(descriptor)
             except FileExistsError:
                 pass
-        database = sqlite3.connect(path.as_uri()+'?mode=rw',uri=True,isolation_level=None,timeout=5)
+        database = sqlite3.connect(
+            path.as_uri() + "?mode=rw", uri=True, isolation_level=None, timeout=5
+        )
     database.row_factory = sqlite3.Row
-    database.execute('PRAGMA foreign_keys=ON')
-    database.execute('PRAGMA synchronous=FULL')
-    if database.execute('PRAGMA journal_mode').fetchone()[0] == 'wal' and not wal_fixed(sqlite3.sqlite_version_info):
+    database.execute("PRAGMA foreign_keys=ON")
+    database.execute("PRAGMA synchronous=FULL")
+    if database.execute("PRAGMA journal_mode").fetchone()[0] == "wal" and not wal_fixed(
+        sqlite3.sqlite_version_info
+    ):
         database.close()
-        raise RelayError("WAL mode requires SQLite 3.51.3+ or a documented fixed backport")
+        raise RelayError(
+            "WAL mode requires SQLite 3.51.3+ or a documented fixed backport"
+        )
     return database
 
 
 @contextmanager
 def transaction(database):
     if database.in_transaction:
-        raise RelayError("Nested transactions are not supported; use the existing application transaction")
-    database.execute('BEGIN IMMEDIATE')
+        raise RelayError(
+            "Nested transactions are not supported; use the existing application transaction"
+        )
+    database.execute("BEGIN IMMEDIATE")
     try:
         yield database
         database.commit()
     except BaseException:
-        if database.in_transaction: database.rollback()
+        if database.in_transaction:
+            database.rollback()
         raise
 
 
 def require_transaction(database):
     if not database.in_transaction:
-        raise RelayError("Enqueue and inbox writes require an active application transaction")
+        raise RelayError(
+            "Enqueue and inbox writes require an active application transaction"
+        )
 
 
 def initialize(database):
     with transaction(database):
-        for statement in SCHEMA: database.execute(statement)
-        database.execute('INSERT INTO relayledger_meta(singleton,version) VALUES(1,1) ON CONFLICT(singleton) DO NOTHING')
-        if database.execute('SELECT version FROM relayledger_meta WHERE singleton=1').fetchone()[0] != 1:
+        for statement in SCHEMA:
+            database.execute(statement)
+        database.execute(
+            "INSERT INTO relayledger_meta(singleton,version) VALUES(1,1) ON CONFLICT(singleton) DO NOTHING"
+        )
+        if (
+            database.execute(
+                "SELECT version FROM relayledger_meta WHERE singleton=1"
+            ).fetchone()[0]
+            != 1
+        ):
             raise RelayError("Unsupported RelayLedger schema version")
 
 
 def check_schema(database):
     try:
-        version = database.execute('SELECT version FROM relayledger_meta WHERE singleton=1').fetchone()
+        version = database.execute(
+            "SELECT version FROM relayledger_meta WHERE singleton=1"
+        ).fetchone()
     except sqlite3.DatabaseError as exc:
         raise RelayError("Initialize the RelayLedger schema before use") from exc
     if version is None or version[0] != 1:
