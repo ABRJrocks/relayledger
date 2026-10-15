@@ -6,7 +6,7 @@ import json
 import uuid
 
 from .database import check_schema, require_transaction
-from .validation import Conflict, MAX_BODY, RelayError, instant, label
+from .validation import Conflict, MAX_BODY, RelayError, canonical, instant, label
 
 
 def _pairs(pairs):
@@ -36,6 +36,7 @@ def decode_event(body):
             raise RelayError("Event timestamp must be UTC")
         datetime.fromisoformat(event['time'].replace('Z','+00:00'))
         if not isinstance(event['data'],dict): raise RelayError("Event data must be an object")
+        canonical(event)
         return event
     except (ValueError,TypeError,AttributeError,UnicodeError,RecursionError) as exc:
         if isinstance(exc,RelayError): raise
